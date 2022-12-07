@@ -2,6 +2,8 @@
 //
 
 #include <iostream>
+#include <fstream>
+#include <ctime>
 
 using namespace std;
 
@@ -17,18 +19,26 @@ typedef struct
 	int t;
 } u_func;
 
+int CurrentCol = 0; // текущий столбец перебора
+int N = 0, theta = 0, delta = 0;
+int K = 0, H = 0, rho = 0;
+u_func *U; // ступенчатая функция u(t)
+int Area = 0; // площадь под графиком функции
+int NumOfComb = 0; // число комбинаций. Для проерки правильности алгоритма. Должно быть типа (x+1)^x
+ofstream write_file;
+char filename[15];
+
 Status axis_param_input(int *lim, int *step, int *num); // lim - theta, step - delta, num - N
+void go_through_previous(int PervColCurVal);
 
 int main()
 {
 	setlocale(LC_ALL, "Russian");
 
-	int N = 0, theta = 0, delta = 0;
-	int K = 0, H = 0, rho = 0;
-	u_func *U; // ступенчатая функция u(t)
 	float *float_dim; // размерность поля
 	int dim = 0;
-	int Area = 0; // площадь под графиком функции
+	int StartTime = 0, StopTime = 0;
+	float Time = 0.0;
 
 	float_dim = new float;
 	cout << "Введите размерность: ";
@@ -58,28 +68,29 @@ int main()
 		return ERROR;
 	}
 
+	// выделим память для узлов сетки поля
 	U = new u_func[N];
-
-	for (int delta_i = 0; delta_i < N; delta_i++)
+	for (int i = 0; i < N; i++)
 	{
-		U[delta_i].t = delta_i * delta; // значения функции по оси t
-		U[delta_i].u = new int[dim - 1]; // массив значений функции в каждой размерности для этого значения времени t
-		for (int u_i_j = 0; u_i_j < dim - 1; u_i_j++)
-		{
-			cout << "Введите значение функции (число клеток от " << -1*K << " до " << K << "): ";
-			cin >> U[delta_i].u[u_i_j];
-			if ((-1*K <= U[delta_i].u[u_i_j]) && (U[delta_i].u[u_i_j] <= K))
-				Area += delta * abs(rho*U[delta_i].u[u_i_j]);
-			else
-			{
-				cout << "Неверный ввод!" << endl;
-				system("pause");
-				return ERROR;
-			}
-		}
+		U[i].u = new int[1]; // число размерностей по оси y
+		U[i].u[0] = 0; // сделаем все нулями изначально
+		U[i].t = i * delta; // значения по оси x
 	}
 
-	cout << "Площадь равна: " << Area << endl;
+	sprintf(filename, "%dx%d.txt", N, K);
+	write_file.open(filename);
+
+	StartTime = clock();
+	go_through_previous(0); // аргумент - начальной значение функций в первом отрезке delta
+	StopTime = clock();
+
+	write_file.close();
+
+	cout << endl << "Число комбинаций: " << NumOfComb << endl;
+
+	Time = (float)(StopTime - StartTime) / 1000.0;
+	cout << endl << "Время работы: " << Time << " с." << endl;
+
 	system("pause");
 	return OK;
 }
@@ -126,6 +137,38 @@ Status axis_param_input(int *lim, int *step, int *num)
 		*num = (int)float_num;
 		return OK;
 	}
+}
+
+// для каждого вызова функции крайний левый слолбец будет изменяться (смещаться вправо)
+void go_through_previous(int PervColCurVal)
+{
+	for (int i = PervColCurVal; i <= K; i++)
+	{
+		U[CurrentCol].u[0] = i;
+		// двигаемся в самый правый столбец
+		if (CurrentCol < N - 1)
+		{
+			CurrentCol++;
+			go_through_previous(U[CurrentCol].u[0]);
+		}
+
+		// когда дошли, перебираем значения
+		else
+		{
+			Area = 0;
+			U[CurrentCol].u[0] = i;
+			for (int j = 0; j < N; j++)
+			{
+				cout << U[j].u[0];
+				Area += U[j].u[0];
+			}
+			NumOfComb++;
+			cout << " Площадь: " << Area << endl;
+			write_file << Area << "\n";
+		}
+	}
+	U[CurrentCol].u[0] = 0; // зачищаем для нового перебора на следующей итерации
+	CurrentCol--;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
