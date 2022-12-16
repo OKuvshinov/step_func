@@ -5,8 +5,12 @@
 #include <fstream>
 #include <ctime>
 
+#include <SFML\Graphics.hpp>
+
 #define PI 3.141592
 #define PRINTCOMBS 0 // переключатель для печати комбинаций в косоли
+#define WIN_W 1000
+#define WIN_H 1000
 
 using namespace std;
 
@@ -25,14 +29,15 @@ typedef struct
 int CurrentCol = 0; // текущий столбец перебора
 
 int N = 0;
-float theta = 0, delta = 0;
+float theta = 0.0, delta = 0.0;
+float delta2 = 0.0;
 
 int K = 0;
-float H = 0, rho = 0;
+float H = 0.0, rho = 0.0;
 
 u_func *U; // ступенчатая функция u(t)
 float Area = 0; // площадь под графиком функции
-int NumOfComb = 0; // число комбинаций. Для проерки правильности алгоритма. Должно быть типа (x+1)^x
+unsigned long long int NumOfComb = 0; // число комбинаций. Для проерки правильности алгоритма. Должно быть типа (x+1)^x
 float InitValue = 0.0; // число, с которого начинается перебор каждого столбца
 
 ofstream write_file;
@@ -47,8 +52,44 @@ void count_way(void); // рассчитать управление
 float func1(float t_prev, float x_prev);
 float func2(float t_prev, float x_prev);
 
+void draw_axis(void);
+
+sf::RenderWindow window(sf::VideoMode(WIN_W, WIN_H), "Hello, World!", sf::Style::Close);
+sf::CircleShape shape(2.0);
+
 int main()
 {
+	// Создать окно
+
+
+	// Ограничить частоту кадров в секунду до 60
+	window.setFramerateLimit(60);
+
+	// set the shape color to green
+
+	// Основной цикл
+	//while (window.isOpen())
+	//{
+	//	// События
+	//	sf::Event event;
+
+	//	// Обработка событий (нажатие кнопок, закрытие окна и т.д.)
+	//	while (window.pollEvent(event))
+	//	{
+	//		// Закрыть окно если нажата кнопка "Закрыть"
+	//		if (event.type == sf::Event::Closed)
+	//			window.close();
+	//	}
+
+	//	// Очистить окно и залить его черным цветом
+	//	window.clear(sf::Color::Black);
+
+	//	window.draw(shape);
+	//	// Отобразить
+	//	window.display();
+
+	//}
+
 	float q = cos(45*PI/180);
 	setlocale(LC_ALL, "Russian");
 
@@ -81,7 +122,7 @@ int main()
 		}
 		else
 		{
-			cout << endl << "theta = " << H << " delta = " << rho << " N = " << K << endl;
+			cout << endl << "H = " << H << " rho = " << rho << " K = " << K << endl;
 		}
 	}
 	else
@@ -90,6 +131,7 @@ int main()
 		return ERROR;
 	}
 
+	delta2 = delta * delta;
 	InitValue = -1.0*rho;
 
 	// массивы координат управляемой точки
@@ -111,12 +153,16 @@ int main()
 
 	sprintf(filename, "%.2fx%.2f.txt", N, K);
 	write_file.open(filename);
+	shape.setFillColor(sf::Color(100, 250, 50));
 
 	StartTime = clock();
 	go_through_previous(InitValue); // аргумент - начальной значение функций в первом отрезке delta
 	StopTime = clock();
 
 	write_file.close();
+
+	draw_axis();
+	window.display();
 
 	cout << endl << "Число комбинаций: " << NumOfComb << endl;
 
@@ -205,8 +251,9 @@ void go_through_previous(float PervColCurVal)
 				}
 				cout << endl << endl;
 			#endif // PRINTCOMBS
-			NumOfComb++;		
-			count_way();
+			NumOfComb++;
+			if (NumOfComb % N == 0)
+				count_way();
 			//cout << " Площадь: " << Area << endl;
 			//write_file << Area << "\n";
 		}
@@ -217,19 +264,31 @@ void go_through_previous(float PervColCurVal)
 
 void count_way(void)
 {
-	// задаем новые начальные занчения
+	float float_i;
+	// задаем новые начальные занчения точки (не путать с начальным значением управления u(t)!)
 	x1[0] = 0;
 	x2[0] = 0;
 
 	//write_file << x1[0] << " " << x2[0] << endl;
 	for (int i = 1; i <= N; i++)
 	{
-		x1[i] = x1[i - 1] + delta * func1(delta*(float)i, sqrt(pow(x1[i - 1], 2) + pow(x2[i - 1], 2))) + delta * U[i - 1].u[0] * b1;
-		x2[i] = x2[i - 1] + delta * func2(delta*(float)i, sqrt(pow(x1[i - 1], 2) + pow(x2[i - 1], 2))) + delta * U[i - 1].u[0] * b2;
+		float_i = (float)i;
+		//x1[i] = x1[i - 1] + delta * func1(delta * (float)i, sqrt(x1[i - 1] * x1[i - 1] + x2[i - 1] * x2[i - 1])) + delta * U[i - 1].u[0] * b1;
+		//x2[i] = x2[i - 1] + delta * func2(delta * (float)i, sqrt(x1[i - 1] * x1[i - 1] + x2[i - 1] * x2[i - 1])) + delta * U[i - 1].u[0] * b2;
+		x1[i] = x1[i - 1] + delta2 * float_i * cos(sqrt(x1[i - 1] * x1[i - 1] + x2[i - 1] * x2[i - 1]) * 0.017453) + delta * U[i - 1].u[0] * b1;
+		x2[i] = x2[i - 1] + delta2 * float_i * sin(sqrt(x1[i - 1] * x1[i - 1] + x2[i - 1] * x2[i - 1]) * 0.017453) + delta * U[i - 1].u[0] * b2;
 		//cout << x1[i] << " " << x2[i] << endl;
 		//write_file << x1[i] << " " << x2[i] << endl;
 	}
-	write_file << endl << x1[N] << " " << x2[N];
+	shape.setPosition(WIN_W / 2 + x1[N]*5.0, WIN_H / 2 - x2[N]*5.0);
+	window.draw(shape);
+	
+	if (NumOfComb % 1000000 == 0)
+	{
+		//window.display();
+		cout << endl << NumOfComb;
+		//write_file << endl << x1[N] << " " << x2[N];
+	}
 	//cout << x1[N] << " " << x2[N] << endl;
 }
 
@@ -241,6 +300,45 @@ float func2(float t_prev, float x_prev)
 {
 	return t_prev * sin(x_prev*PI/180);
 }
+
+void draw_axis(void)
+{
+	int NCount = 10;
+
+	shape.setFillColor(sf::Color(0, 0, 255));
+
+	for (int i = WIN_W/2; i < WIN_W; i += WIN_W / (2*NCount))
+	{
+		shape.setPosition(i, WIN_H/2);
+		window.draw(shape);
+		//window.display();
+	}
+
+	for (int i = WIN_W / 2; i > 0; i -= WIN_W / (2 * NCount))
+	{
+		shape.setPosition(i, WIN_H / 2);
+			window.draw(shape);
+			//window.display();
+	}
+
+	for (int i = WIN_H / 2; i < WIN_H; i += WIN_H / (2 * NCount))
+	{
+		shape.setPosition(WIN_W/2, i);
+		window.draw(shape);
+		//window.display();
+	}
+
+	for (int i = WIN_H / 2; i > 0; i -= WIN_H / (2 * NCount))
+	{
+		shape.setPosition(WIN_W / 2, i);
+		window.draw(shape);
+		//window.display();
+	}
+
+	//shape.setPosition(WIN_W/2 + 1.5*50.0, WIN_H / 2 - 1.5*50.0);
+	//window.draw(shape);
+}
+
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
 // Debug program: F5 or Debug > Start Debugging menu
